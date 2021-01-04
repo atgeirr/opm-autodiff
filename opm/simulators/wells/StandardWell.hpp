@@ -87,6 +87,7 @@ namespace Opm
         using PolymerModule =  Opm::BlackOilPolymerModule<TypeTag>;
         using FoamModule = Opm::BlackOilFoamModule<TypeTag>;
         using BrineModule = Opm::BlackOilBrineModule<TypeTag>;
+        using PressureMatrix = Dune::BCRSMatrix<Dune::FieldMatrix<double, 1, 1>>;
 
         // polymer concentration and temperature are already known by the well, so
         // polymer and energy conservation do not need to be considered explicitly
@@ -235,7 +236,11 @@ namespace Opm
                                              WellState& well_state,
                                              DeferredLogger& deferred_logger) const override;
 
-        virtual void  addWellContributions(SparseMatrixAdapter& mat) const override;
+        virtual void addWellContributions(SparseMatrixAdapter& mat) const override;
+
+        virtual void addWellPressureEquationsStruct(PressureMatrix& mat) const override;
+
+        virtual void addWellPressureEquations(PressureMatrix& mat, const BVector& x) const override;
 
         // iterate well equations with the specified control until converged
         bool iterateWellEqWithControl(const Simulator& ebosSimulator,

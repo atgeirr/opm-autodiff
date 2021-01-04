@@ -265,6 +265,30 @@ namespace Opm {
             /// Returns true if the well was actually found and shut.
             bool forceShutWellByNameIfPredictionMode(const std::string& wellname, const double simulation_time);
 
+            // The number of components in the model.
+            int numComponents() const;
+
+            int numLocalWells() const;
+
+            int numPhases() const;
+
+            using PressureMatrix = Dune::BCRSMatrix<Dune::FieldMatrix<double, 1, 1>>;
+
+            void addWellPressureEquations(PressureMatrix& jacobian, const BVector& weights) const
+            {
+                for (const auto& well : well_container_) {
+                    well->addWellPressureEquations(jacobian, weights);
+                }
+            }
+
+            void addWellPressureEquationsStruct(PressureMatrix& jacobian) const
+            {
+                for (const auto& well : well_container_) {
+                    well->addWellPressureEquationsStruct(jacobian);
+                }
+            }
+
+
         protected:
             Simulator& ebosSimulator_;
 
@@ -418,13 +442,6 @@ namespace Opm {
             SimulatorReportSingle solveWellEq(const std::vector<Scalar>& B_avg, const double dt, Opm::DeferredLogger& deferred_logger);
 
             void initPrimaryVariablesEvaluation() const;
-
-            // The number of components in the model.
-            int numComponents() const;
-
-            int numLocalWells() const;
-
-            int numPhases() const;
 
             void assembleWellEq(const std::vector<Scalar>& B_avg, const double dt, Opm::DeferredLogger& deferred_logger);
 

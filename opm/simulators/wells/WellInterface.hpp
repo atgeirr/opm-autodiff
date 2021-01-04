@@ -91,6 +91,7 @@ namespace Opm
         typedef Dune::FieldMatrix<Scalar, numEq, numEq > MatrixBlockType;
         typedef Dune::BlockVector<VectorBlockType> BVector;
         typedef DenseAd::Evaluation<double, /*size=*/numEq> Eval;
+        using PressureMatrix = Dune::BCRSMatrix<Dune::FieldMatrix<double, 1, 1>>;
 
         static const bool has_solvent = getPropValue<TypeTag, Properties::EnableSolvent>();
         static const bool has_zFraction = getPropValue<TypeTag, Properties::EnableExtbo>();
@@ -241,6 +242,15 @@ namespace Opm
 
         // Add well contributions to matrix
         virtual void addWellContributions(SparseMatrixAdapter&) const = 0;
+
+        virtual void addWellPressureEquationsStruct(PressureMatrix&) const
+        {
+        }
+
+        virtual void addWellPressureEquations(PressureMatrix&,
+                                              const BVector& x) const
+        {
+        }
 
         void addCellRates(RateVector& rates, int cellIdx) const;
 
