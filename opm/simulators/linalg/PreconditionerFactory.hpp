@@ -24,9 +24,11 @@
 
 #include <opm/simulators/linalg/OwningBlockPreconditioner.hpp>
 #include <opm/simulators/linalg/OwningTwoLevelPreconditioner.hpp>
+#include <opm/simulators/linalg/OwningTwoLevelPreconditionerWell.hpp>
 #include <opm/simulators/linalg/ParallelOverlappingILU0.hpp>
 #include <opm/simulators/linalg/PreconditionerWithUpdate.hpp>
 #include <opm/simulators/linalg/amgcpr.hh>
+#include <opm/simulators/linalg/WellOperators.hpp>
 
 #include <dune/istl/paamg/amg.hh>
 #include <dune/istl/paamg/kamg.hh>
@@ -307,14 +309,33 @@ private:
             });
         }
 
-        doAddCreator("cpr", [](const O& op, const P& prm, const std::function<Vector()> weightsCalculator, const C& comm) {
-            assert(weightsCalculator);
-            return std::make_shared<OwningTwoLevelPreconditioner<O, V, false, Comm>>(op, prm, weightsCalculator, comm);
-        });
-        doAddCreator("cprt", [](const O& op, const P& prm, const std::function<Vector()> weightsCalculator, const C& comm) {
-            assert(weightsCalculator);
-            return std::make_shared<OwningTwoLevelPreconditioner<O, V, true, Comm>>(op, prm, weightsCalculator, comm);
-        });
+        if constexpr (std::is_same_v<O, WellModelGhostLastMatrixAdapter<M, V, V, true>>) {
+            doAddCreator("cpr",
+                         [](const O& op, const P& prm, const std::function<Vector()> weightsCalculator, const C& comm) {
+                             assert(weightsCalculator);
+                             return std::make_shared<OwningTwoLevelPreconditionerWell<O, V, false, Comm>>(
+                                 op, prm, weightsCalculator, comm);
+                         });
+            doAddCreator("cprt",
+                         [](const O& op, const P& prm, const std::function<Vector()> weightsCalculator, const C& comm) {
+                             assert(weightsCalculator);
+                             return std::make_shared<OwningTwoLevelPreconditionerWell<O, V, true, Comm>>(
+                                 op, prm, weightsCalculator, comm);
+                         });
+        } else {
+            doAddCreator("cpr",
+                         [](const O& op, const P& prm, const std::function<Vector()> weightsCalculator, const C& comm) {
+                             assert(weightsCalculator);
+                             return std::make_shared<OwningTwoLevelPreconditioner<O, V, false, Comm>>(
+                                 op, prm, weightsCalculator, comm);
+                         });
+            doAddCreator("cprt",
+                         [](const O& op, const P& prm, const std::function<Vector()> weightsCalculator, const C& comm) {
+                             assert(weightsCalculator);
+                             return std::make_shared<OwningTwoLevelPreconditioner<O, V, true, Comm>>(
+                                 op, prm, weightsCalculator, comm);
+                         });
+        }
     }
 
     // Add a useful default set of preconditioners to the factory.
@@ -436,12 +457,22 @@ private:
                 return wrapPreconditioner<Dune::Amg::FastAMG<O, V>>(op, crit, parms);
             });
         }
-        doAddCreator("cpr", [](const O& op, const P& prm, const std::function<Vector()>& weightsCalculator) {
-            return std::make_shared<OwningTwoLevelPreconditioner<O, V, false>>(op, prm, weightsCalculator);
-        });
-        doAddCreator("cprt", [](const O& op, const P& prm, const std::function<Vector()>& weightsCalculator) {
-            return std::make_shared<OwningTwoLevelPreconditioner<O, V, true>>(op, prm, weightsCalculator);
-        });
+
+        if constexpr (std::is_same_v<O, WellModelMatrixAdapter<M, V, V, false>>) {
+            doAddCreator("cpr", [](const O& op, const P& prm, const std::function<Vector()>& weightsCalculator) {
+                return std::make_shared<OwningTwoLevelPreconditionerWell<O, V, false>>(op, prm, weightsCalculator);
+            });
+            doAddCreator("cprt", [](const O& op, const P& prm, const std::function<Vector()>& weightsCalculator) {
+                return std::make_shared<OwningTwoLevelPreconditionerWell<O, V, true>>(op, prm, weightsCalculator);
+            });
+        } else {
+            doAddCreator("cpr", [](const O& op, const P& prm, const std::function<Vector()>& weightsCalculator) {
+                return std::make_shared<OwningTwoLevelPreconditioner<O, V, false>>(op, prm, weightsCalculator);
+            });
+            doAddCreator("cprt", [](const O& op, const P& prm, const std::function<Vector()>& weightsCalculator) {
+                return std::make_shared<OwningTwoLevelPreconditioner<O, V, true>>(op, prm, weightsCalculator);
+            });
+        }
     }
 
 
