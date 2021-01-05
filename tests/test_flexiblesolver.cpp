@@ -77,7 +77,7 @@ testSolver(const boost::property_tree::ptree& prm, const std::string& matrix_fil
               };
     using SeqOperatorType = Dune::MatrixAdapter<Matrix, Vector, Vector>;
     SeqOperatorType op(matrix);
-    Dune::FlexibleSolver<Matrix, Vector> solver(op, prm, wc);
+    Dune::FlexibleSolver<SeqOperatorType> solver(op, prm, wc);
     Vector x(rhs.size());
     Dune::InverseOperatorResult res;
     solver.apply(x, rhs, res);

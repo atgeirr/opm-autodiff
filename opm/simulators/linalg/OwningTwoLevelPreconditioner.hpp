@@ -52,7 +52,7 @@ namespace Dune
 
 
 // Must forward-declare FlexibleSolver as we want to use it as solver for the pressure system.
-template <class MatrixTypeT, class VectorTypeT>
+template <class Operator>
 class FlexibleSolver;
 
 template <typename T, typename A, int i>
@@ -181,7 +181,7 @@ private:
                                                   ParCoarseOperatorType>;
     using LevelTransferPolicy = Opm::PressureTransferPolicy<OperatorType, CoarseOperatorType, Communication, transpose>;
     using CoarseSolverPolicy = Dune::Amg::PressureSolverPolicy<CoarseOperatorType,
-                                                               FlexibleSolver<PressureMatrixType, PressureVectorType>,
+                                                               FlexibleSolver<CoarseOperatorType>,
                                                                LevelTransferPolicy>;
     using TwoLevelMethod
         = Dune::Amg::TwoLevelMethodCpr<OperatorType, CoarseSolverPolicy, Dune::Preconditioner<VectorType, VectorType>>;

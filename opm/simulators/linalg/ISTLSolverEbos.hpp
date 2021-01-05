@@ -87,9 +87,10 @@ namespace Opm
         using Matrix = typename SparseMatrixAdapter::IstlMatrix;
         using ThreadManager = GetPropType<TypeTag, Properties::ThreadManager>;
         using ElementContext = GetPropType<TypeTag, Properties::ElementContext>;
-        using FlexibleSolverType = Dune::FlexibleSolver<Matrix, Vector>;
         using AbstractOperatorType = Dune::AssembledLinearOperator<Matrix, Vector, Vector>;
         using WellModelOperator = WellModelAsLinearOperator<WellModel, Vector, Vector>;
+        using ParOperatorType = WellModelGhostLastMatrixAdapter<Matrix, Vector, Vector, true>;
+        using FlexibleSolverType = Dune::FlexibleSolver<ParOperatorType>;
         using ElementMapper = GetPropType<TypeTag, Properties::ElementMapper>;
 
 #if HAVE_CUDA || HAVE_OPENCL
@@ -352,27 +353,28 @@ namespace Opm
                 if (isParallel()) {
 #if HAVE_MPI
                     if (useWellConn_) {
-                        using ParOperatorType = Dune::OverlappingSchwarzOperator<Matrix, Vector, Vector, Comm>;
-                        linearOperatorForFlexibleSolver_ = std::make_unique<ParOperatorType>(getMatrix(), *comm_);
-                        flexibleSolver_ = std::make_unique<FlexibleSolverType>(*linearOperatorForFlexibleSolver_, *comm_, prm_, weightsCalculator);
+                        // using ParOperatorType = Dune::OverlappingSchwarzOperator<Matrix, Vector, Vector, Comm>;
+                        // linearOperatorForFlexibleSolver_ = std::make_unique<ParOperatorType>(getMatrix(), *comm_);
+                        // flexibleSolver_ = std::make_unique<FlexibleSolverType>(*linearOperatorForFlexibleSolver_, *comm_, prm_, weightsCalculator);
                     } else {
                         using ParOperatorType = WellModelGhostLastMatrixAdapter<Matrix, Vector, Vector, true>;
                         wellOperator_ = std::make_unique<WellModelOperator>(simulator_.problem().wellModel());
-                        linearOperatorForFlexibleSolver_ = std::make_unique<ParOperatorType>(getMatrix(), *wellOperator_, interiorCellNum_);
-                        flexibleSolver_ = std::make_unique<FlexibleSolverType>(*linearOperatorForFlexibleSolver_, *comm_, prm_, weightsCalculator);
+                        auto op = std::make_unique<ParOperatorType>(getMatrix(), *wellOperator_, interiorCellNum_);
+                        flexibleSolver_ = std::make_unique<FlexibleSolverType>(*op, *comm_, prm_, weightsCalculator);
+                        linearOperatorForFlexibleSolver_ = std::move(op);
                     }
 #endif
                 } else {
-                    if (useWellConn_) {
-                        using SeqOperatorType = Dune::MatrixAdapter<Matrix, Vector, Vector>;
-                        linearOperatorForFlexibleSolver_ = std::make_unique<SeqOperatorType>(getMatrix());
-                        flexibleSolver_ = std::make_unique<FlexibleSolverType>(*linearOperatorForFlexibleSolver_, prm_, weightsCalculator);
-                    } else {
-                        using SeqOperatorType = WellModelMatrixAdapter<Matrix, Vector, Vector, false>;
-                        wellOperator_ = std::make_unique<WellModelOperator>(simulator_.problem().wellModel());
-                        linearOperatorForFlexibleSolver_ = std::make_unique<SeqOperatorType>(getMatrix(), *wellOperator_);
-                        flexibleSolver_ = std::make_unique<FlexibleSolverType>(*linearOperatorForFlexibleSolver_, prm_, weightsCalculator);
-                    }
+                    // if (useWellConn_) {
+                    //     using SeqOperatorType = Dune::MatrixAdapter<Matrix, Vector, Vector>;
+                    //     linearOperatorForFlexibleSolver_ = std::make_unique<SeqOperatorType>(getMatrix());
+                    //     flexibleSolver_ = std::make_unique<FlexibleSolverType>(*linearOperatorForFlexibleSolver_, prm_, weightsCalculator);
+                    // } else {
+                    //     using SeqOperatorType = WellModelMatrixAdapter<Matrix, Vector, Vector, false>;
+                    //     wellOperator_ = std::make_unique<WellModelOperator>(simulator_.problem().wellModel());
+                    //     linearOperatorForFlexibleSolver_ = std::make_unique<SeqOperatorType>(getMatrix(), *wellOperator_);
+                    //     flexibleSolver_ = std::make_unique<FlexibleSolverType>(*linearOperatorForFlexibleSolver_, prm_, weightsCalculator);
+                    // }
                 }
             }
             else

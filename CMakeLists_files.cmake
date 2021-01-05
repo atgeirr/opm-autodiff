@@ -27,10 +27,10 @@ list (APPEND MAIN_SOURCE_FILES
   opm/simulators/timestepping/SimulatorReport.cpp
   opm/simulators/flow/MissingFeatures.cpp
   opm/simulators/linalg/ExtractParallelGridInformationToISTL.cpp
-  opm/simulators/linalg/FlexibleSolver1.cpp
-  opm/simulators/linalg/FlexibleSolver2.cpp
-  opm/simulators/linalg/FlexibleSolver3.cpp
-  opm/simulators/linalg/FlexibleSolver4.cpp
+  # opm/simulators/linalg/FlexibleSolver1.cpp
+  # opm/simulators/linalg/FlexibleSolver2.cpp
+  # opm/simulators/linalg/FlexibleSolver3.cpp
+  # opm/simulators/linalg/FlexibleSolver4.cpp
   opm/simulators/linalg/setupPropertyTree.cpp
   opm/simulators/utils/readDeck.cpp
   opm/simulators/timestepping/TimeStepControl.cpp

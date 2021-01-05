@@ -36,26 +36,24 @@ namespace Dune
 /// (operator, scalar product, iterative solver and preconditioner) and sets
 /// them up based on runtime parameters, using the PreconditionerFactory for
 /// setting up preconditioners.
-template <class MatrixTypeT, class VectorTypeT>
-class FlexibleSolver : public Dune::InverseOperator<VectorTypeT, VectorTypeT>
+template <class Operator>
+class FlexibleSolver : public Dune::InverseOperator<typename Operator::domain_type,
+                                                    typename Operator::range_type>
 {
 public:
-    using MatrixType = MatrixTypeT;
-    using VectorType = VectorTypeT;
+    using VectorType = typename Operator::domain_type; // Assuming symmetry: domain == range
 
-    /// Base class type of the operator passed to the solver.
-    using AbstractOperatorType = Dune::AssembledLinearOperator<MatrixType, VectorType, VectorType>;
     /// Base class type of the contained preconditioner.
     using AbstractPrecondType = Dune::PreconditionerWithUpdate<VectorType, VectorType>;
 
     /// Create a sequential solver.
-    FlexibleSolver(AbstractOperatorType& op,
+    FlexibleSolver(Operator& op,
                    const boost::property_tree::ptree& prm,
                    const std::function<VectorType()>& weightsCalculator = std::function<VectorType()>());
 
     /// Create a parallel solver (if Comm is e.g. OwnerOverlapCommunication).
     template <class Comm>
-    FlexibleSolver(AbstractOperatorType& op,
+    FlexibleSolver(Operator& op,
                    const Comm& comm,
                    const boost::property_tree::ptree& prm,
                    const std::function<VectorType()>& weightsCalculator = std::function<VectorType()>());
@@ -75,10 +73,10 @@ private:
 
     // Machinery for making sequential or parallel operators/preconditioners/scalar products.
     template <class Comm>
-    void initOpPrecSp(AbstractOperatorType& op, const boost::property_tree::ptree& prm,
+    void initOpPrecSp(Operator& op, const boost::property_tree::ptree& prm,
                       const std::function<VectorType()> weightsCalculator, const Comm& comm);
 
-    void initOpPrecSp(AbstractOperatorType& op, const boost::property_tree::ptree& prm,
+    void initOpPrecSp(Operator& op, const boost::property_tree::ptree& prm,
                       const std::function<VectorType()> weightsCalculator, const Dune::Amg::SequentialInformation&);
 
     void initSolver(const boost::property_tree::ptree& prm, const bool is_iorank);
@@ -86,13 +84,12 @@ private:
     // Main initialization routine.
     // Call with Comm == Dune::Amg::SequentialInformation to get a serial solver.
     template <class Comm>
-    void init(AbstractOperatorType& op,
+    void init(Operator& op,
               const Comm& comm,
               const boost::property_tree::ptree& prm,
               const std::function<VectorType()> weightsCalculator);
 
-    AbstractOperatorType* linearoperator_for_solver_;
-    std::shared_ptr<AbstractOperatorType> linearoperator_for_precond_;
+    Operator* linearoperator_for_solver_;
     std::shared_ptr<AbstractPrecondType> preconditioner_;
     std::shared_ptr<AbstractScalarProductType> scalarproduct_;
     std::shared_ptr<AbstractSolverType> linsolver_;
@@ -100,6 +97,7 @@ private:
 
 } // namespace Dune
 
+#include <opm/simulators/linalg/FlexibleSolver_impl.hpp>
 
 
 #endif // OPM_FLEXIBLE_SOLVER_HEADER_INCLUDED

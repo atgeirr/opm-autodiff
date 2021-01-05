@@ -50,7 +50,7 @@ namespace Dune
 
 
 // Must forward-declare FlexibleSolver as we want to use it as solver for the pressure system.
-template <class MatrixTypeT, class VectorTypeT>
+template <class Operator>
 class FlexibleSolver;
 
 // template <typename T, typename A, int i>
@@ -181,7 +181,7 @@ private:
                                                   ParCoarseOperatorType>;
     using LevelTransferPolicy = Opm::PressureBhpTransferPolicy<OperatorType, CoarseOperatorType, Communication, transpose>;
     using CoarseSolverPolicy = Dune::Amg::PressureSolverPolicy<CoarseOperatorType,
-                                                               FlexibleSolver<PressureMatrixType, PressureVectorType>,
+                                                               FlexibleSolver<CoarseOperatorType>,
                                                                LevelTransferPolicy>;
     using TwoLevelMethod
         = Dune::Amg::TwoLevelMethodCpr<OperatorType, CoarseSolverPolicy, Dune::Preconditioner<VectorType, VectorType>>;
@@ -191,23 +191,23 @@ private:
     void updateImpl(const Comm*)
     {
         // Parallel case.
-        using ParOperatorType = Dune::OverlappingSchwarzOperator<MatrixType, VectorType, VectorType, Comm>;
-        auto op_prec = std::make_shared<ParOperatorType>(linear_operator_.getmat(), *comm_);
+        // using ParOperatorType = Dune::OverlappingSchwarzOperator<MatrixType, VectorType, VectorType, Comm>;
+        // auto op_prec = std::make_shared<ParOperatorType>(linear_operator_.getmat(), *comm_);
         auto child = prm_.get_child_optional("finesmoother");
-        finesmoother_ = PrecFactory::create(*op_prec, child ? *child : pt(), *comm_);
+        finesmoother_ = PrecFactory::create(linear_operator_, child ? *child : pt(), *comm_);
         twolevel_method_.updatePreconditioner(finesmoother_, coarseSolverPolicy_);
-        linearoperator_for_precond_ = op_prec;
+        // linearoperator_for_precond_ = op_prec;
     }
 
     void updateImpl(const Dune::Amg::SequentialInformation*)
     {
         // Serial case.
-        using SeqOperatorType = Dune::MatrixAdapter<MatrixType, VectorType, VectorType>;
+        // using SeqOperatorType = Dune::MatrixAdapter<MatrixType, VectorType, VectorType>;
+        // auto op_prec = std::make_shared<SeqOperatorType>(linear_operator_.getmat());
         auto child = prm_.get_child_optional("finesmoother");
-        auto op_prec = std::make_shared<SeqOperatorType>(linear_operator_.getmat());
-        finesmoother_ = PrecFactory::create(*op_prec, child ? *child : pt());
+        finesmoother_ = PrecFactory::create(linear_operator_, child ? *child : pt());
         twolevel_method_.updatePreconditioner(finesmoother_, coarseSolverPolicy_);
-        linearoperator_for_precond_ = op_prec;
+        // linearoperator_for_precond_ = op_prec;
     }
 
     const OperatorType& linear_operator_;
@@ -220,7 +220,7 @@ private:
     TwoLevelMethod twolevel_method_;
     boost::property_tree::ptree prm_;
     Communication dummy_comm_;
-    std::shared_ptr<AbstractOperatorType> linearoperator_for_precond_;
+    //std::shared_ptr<AbstractOperatorType> linearoperator_for_precond_;
 };
 
 } // namespace Dune
