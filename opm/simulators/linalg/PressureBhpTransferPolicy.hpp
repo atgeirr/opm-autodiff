@@ -79,9 +79,7 @@ public:
         : communication_(&const_cast<Communication&>(comm))
         , weights_(weights)
         , prm_(prm)
-        , pressure_var_index_(prm_.get<int>("pressureindex"))
-        , bhp_var_index_(prm_.get<int>("bhpindex"))
-                                                    
+        , pressure_var_index_(prm_.get<int>("pressure_var_index"))
     {
     }
 
@@ -90,10 +88,12 @@ public:
         using CoarseMatrix = typename CoarseOperator::matrix_type;
         const auto& fineLevelMatrix = fineOperator.getmat();
         const auto& nw = fineOperator.getNumberOfExtraEquations();
-        if(prm_.get<int>("add_wells")){    
-            coarseLevelMatrix_.reset(new CoarseMatrix(fineLevelMatrix.N()+nw, fineLevelMatrix.M()+nw, CoarseMatrix::implicit));
-        }else{
-            coarseLevelMatrix_.reset(new CoarseMatrix(fineLevelMatrix.N()+nw, fineLevelMatrix.M()+nw, CoarseMatrix::row_wise));
+        if (prm_.get<bool>("add_wells")) {
+            coarseLevelMatrix_.reset(
+                new CoarseMatrix(fineLevelMatrix.N() + nw, fineLevelMatrix.M() + nw, CoarseMatrix::implicit));
+        } else {
+            coarseLevelMatrix_.reset(
+                new CoarseMatrix(fineLevelMatrix.N(), fineLevelMatrix.M(), CoarseMatrix::row_wise));
         }
         auto createIter = coarseLevelMatrix_->createbegin();
         for (const auto& row : fineLevelMatrix) {
@@ -117,15 +117,15 @@ public:
                 communication_->communicator(), communication_->getSolverCategory(), false);
         }
 #endif
-        if(prm_.get<bool>("add_wells")){            
+        if (prm_.get<bool>("add_wells")) {
             fineOperator.addWellPressureEquationsStruct(*coarseLevelMatrix_);
-            coarseLevelMatrix_->compress();//all elemenst should be set
+            coarseLevelMatrix_->compress(); // all elemenst should be set
             if constexpr (!std::is_same_v<Communication, Dune::Amg::SequentialInformation>) {
                 extendCommunicatorWithWells(*communication_, coarseLevelCommunication_, nw);
             }
         }
         calculateCoarseEntries(fineOperator);
-                
+
         this->lhs_.resize(this->coarseLevelMatrix_->M());
         this->rhs_.resize(this->coarseLevelMatrix_->N());
         using OperatorArgs = typename Dune::Amg::ConstructionTraits<CoarseOperator>::Arguments;
@@ -226,7 +226,6 @@ private:
     const FineVectorType& weights_;
     boost::property_tree::ptree prm_;
     const int pressure_var_index_;
-    const int bhp_var_index_;
     std::shared_ptr<Communication> coarseLevelCommunication_;
     std::shared_ptr<typename CoarseOperator::matrix_type> coarseLevelMatrix_;
     
