@@ -60,7 +60,7 @@ namespace Opm
             //welldofs.push_back(local_ind);
             local_ind +=1;       
         }
-        indset.endResize();
+        indset_rw.endResize();
         // assume same communication pattern
         commRW->remoteIndices().setNeighbours(comm.remoteIndices().getNeighbours());
         commRW->remoteIndices().template rebuild<true>();
@@ -108,9 +108,9 @@ public:
         coarseLevelCommunication_ = std::make_shared<Communication>(communication_->communicator(),communication_->getSolverCategory(),false);//ParallelInformation pinfo;
 #endif    
         if(prm_.get<bool>("add_wells")){            
-            fineOperator.addWellPressureEquationStruct(coarseLevelMatrix_);
+            fineOperator.addWellPressureEquationsStruct(*coarseLevelMatrix_);
             coarseLevelMatrix_->compress();//all elemenst should be set
-            extendCommunicatorWithWells(communication_,
+            extendCommunicatorWithWells(*communication_,
                                         coarseLevelCommunication_,
                                         nw);
         }
@@ -155,7 +155,7 @@ public:
         }
         if(prm_.get<bool>("add_wells")){
             assert(transpose==false);// not implemented
-            fineOperator.addWellPressureEquations(coarseLevelMatrix_, weights_);
+            fineOperator.addWellPressureEquations(*coarseLevelMatrix_, weights_);
         }
         assert(rowCoarse == coarseLevelMatrix_->end());
     }
