@@ -126,6 +126,7 @@ public:
   typedef X domain_type;
   typedef Y range_type;
   typedef typename X::field_type field_type;
+  using PressureMatrix = Dune::BCRSMatrix<Dune::FieldMatrix<double, 1, 1>>;
 #if HAVE_MPI
   typedef Dune::OwnerOverlapCopyCommunication<int,int> communication_type;
 #else
@@ -175,10 +176,18 @@ public:
 
   virtual const matrix_type& getmat() const override { return A_; }
 
-  int getNumberOfExtraEquations() const
-  {
-      return wellOper_.getNumLocalWells();
-  }
+    void addWellPressureEquations(PressureMatrix& jacobian, const X& weights) const
+    {
+        wellOper_.addWellPressureEquations(jacobian, weights);
+    }
+    void addWellPressureEquationsStruct(PressureMatrix& jacobian) const
+    {
+        wellOper_.addWellPressureEquationsStruct(jacobian);
+    }
+    int getNumberOfExtraEquations() const
+    {
+        return wellOper_.getNumberOfExtraEquations();
+    }
 
 protected:
   const matrix_type& A_ ;
@@ -203,7 +212,7 @@ public:
     typedef X domain_type;
     typedef Y range_type;
     typedef typename X::field_type field_type;
-    using  PressureMatrix  = Dune::BCRSMatrix<Dune::FieldMatrix<double, 1,1>>;
+    using PressureMatrix = Dune::BCRSMatrix<Dune::FieldMatrix<double, 1, 1>>;
 #if HAVE_MPI
     typedef Dune::OwnerOverlapCopyCommunication<int,int> communication_type;
 #else
@@ -257,15 +266,19 @@ public:
 
     virtual const matrix_type& getmat() const override { return A_; }
 
-    void addWellPressureEquations(PressureMatrix& jacobian,const X& weights) const{
+    void addWellPressureEquations(PressureMatrix& jacobian, const X& weights) const
+    {
         wellOper_.addWellPressureEquations(jacobian, weights);
     }
-    void addWellPressureEquationsStruct(PressureMatrix& jacobian) const{
+    void addWellPressureEquationsStruct(PressureMatrix& jacobian) const
+    {
         wellOper_.addWellPressureEquationsStruct(jacobian);
     }
-    int getNumberOfExtraEquations() const{
+    int getNumberOfExtraEquations() const
+    {
         return wellOper_.getNumberOfExtraEquations();
     }
+
 protected:
     void ghostLastProject(Y& y) const
     {

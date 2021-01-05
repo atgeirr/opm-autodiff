@@ -21,7 +21,7 @@
 #pragma once
 
 #include <opm/simulators/linalg/twolevelmethodcpr.hh>
-
+#include <dune/istl/paamg/pinfo.hh>
 
 namespace Opm
 {
@@ -103,16 +103,26 @@ public:
             ++createIter;
         }
 #if DUNE_VERSION_NEWER(DUNE_ISTL, 2, 7)
-        coarseLevelCommunication_ = std::make_shared<Communication>(communication_->communicator(),communication_->category(),false);//ParallelInformation pinfo;
-#else    
-        coarseLevelCommunication_ = std::make_shared<Communication>(communication_->communicator(),communication_->getSolverCategory(),false);//ParallelInformation pinfo;
-#endif    
+        if constexpr (std::is_same_v<Communication, Dune::Amg::SequentialInformation>) {
+            coarseLevelCommunication_ = std::make_shared<Communication>();
+        } else {
+            coarseLevelCommunication_ = std::make_shared<Communication>(
+                communication_->communicator(), communication_->category(), false);
+        }
+#else
+        if constexpr (std::is_same_v<Communication, Dune::Amg::SequentialInformation>) {
+            coarseLevelCommunication_ = std::make_shared<Communication>();
+        } else {
+            coarseLevelCommunication_ = std::make_shared<Communication>(
+                communication_->communicator(), communication_->getSolverCategory(), false);
+        }
+#endif
         if(prm_.get<bool>("add_wells")){            
             fineOperator.addWellPressureEquationsStruct(*coarseLevelMatrix_);
             coarseLevelMatrix_->compress();//all elemenst should be set
-            extendCommunicatorWithWells(*communication_,
-                                        coarseLevelCommunication_,
-                                        nw);
+            if constexpr (!std::is_same_v<Communication, Dune::Amg::SequentialInformation>) {
+                extendCommunicatorWithWells(*communication_, coarseLevelCommunication_, nw);
+            }
         }
         calculateCoarseEntries(fineOperator);
                 
