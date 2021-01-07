@@ -3173,7 +3173,7 @@ namespace Opm
         // we need to add the elemenst of CT
         // then we need to ad the quasiimpes type well equation for B D if the well is not
         // BHP contolled
-        const int welldof_ind = duneB_.N() + index_of_well_;
+        const int welldof_ind = duneC_.M() + index_of_well_;
         for (auto colC = duneC_[0].begin(), endC = duneC_[0].end(); colC != endC; ++colC) {
             const auto row_index = colC.index();
             double matel = 0;
@@ -3205,17 +3205,17 @@ namespace Opm
         // then we need to ad the quasiimpes type well equation for B D if the well is not
         // BHP contolled
         int bhp_var_index = Bhp;
-        assert(duneC_.N() == weights.size());
-        const int welldof_ind = duneC_.N() + index_of_well_;
+        assert(duneC_.M() == weights.size());
+        const int welldof_ind = duneC_.M() + index_of_well_;
         for (auto colC = duneC_[0].begin(), endC = duneC_[0].end(); colC != endC; ++colC) {
             const auto row_ind = colC.index();
             const auto& bw = weights[row_ind];
             double matel = 0;
-            assert((*colC).N() == bw.size());
+            assert((*colC).M() == bw.size());
             for (size_t i = 0; i < bw.size(); ++i) {
                 matel += (*colC)[bhp_var_index][i] * bw[i];
             }
-            jacobian.entry(row_ind, welldof_ind) = matel;
+            jacobian[row_ind][welldof_ind] = matel;
         }
         // make quasipes weights for bhp it should be trival
         using VectorBlockType = typename BVector::block_type;
@@ -3236,7 +3236,7 @@ namespace Opm
             // bweights /= std::fabs(abs_max);
         }
         //
-        jacobian.entry(welldof_ind, welldof_ind) = 1.0;
+        jacobian[welldof_ind][welldof_ind] = 1.0;
         // set the matrix elements for well reservoir coupling
         for (auto colB = duneB_[0].begin(), endB = duneB_[0].end(); colB != endB; ++colB) {
             const auto col_index = colB.index();
@@ -3245,7 +3245,7 @@ namespace Opm
             for (size_t i = 0; i < bw.size(); ++i) {
                 matel += (*colB)[bhp_var_index][i] * bw[i];
             }
-            jacobian.entry(welldof_ind, col_index) = matel;
+            jacobian[welldof_ind][col_index] = matel;
         }
     }
 

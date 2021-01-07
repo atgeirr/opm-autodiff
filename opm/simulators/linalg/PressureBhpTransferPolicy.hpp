@@ -89,18 +89,31 @@ public:
         const auto& fineLevelMatrix = fineOperator.getmat();
         const auto& nw = fineOperator.getNumberOfExtraEquations();
         if (prm_.get<bool>("add_wells")) {
-            coarseLevelMatrix_.reset(
-                new CoarseMatrix(fineLevelMatrix.N() + nw, fineLevelMatrix.M() + nw, CoarseMatrix::implicit));
+            const size_t average_elements_per_row
+                = static_cast<size_t>(std::ceil(fineLevelMatrix.nonzeroes() / fineLevelMatrix.N()));
+            const double overflow_fraction = 1.2;
+            coarseLevelMatrix_.reset(new CoarseMatrix(fineLevelMatrix.N() + nw,
+                                                      fineLevelMatrix.M() + nw,
+                                                      average_elements_per_row,
+                                                      overflow_fraction,
+                                                      CoarseMatrix::implicit));
+            int rownum = 0;
+            for (const auto& row : fineLevelMatrix) {
+                for (auto col = row.begin(), cend = row.end(); col != cend; ++col) {
+                    coarseLevelMatrix_->entry(rownum, col.index()) = 0.0;
+                }
+                ++rownum;
+            }
         } else {
             coarseLevelMatrix_.reset(
                 new CoarseMatrix(fineLevelMatrix.N(), fineLevelMatrix.M(), CoarseMatrix::row_wise));
-        }
-        auto createIter = coarseLevelMatrix_->createbegin();
-        for (const auto& row : fineLevelMatrix) {
-            for (auto col = row.begin(), cend = row.end(); col != cend; ++col) {
-                createIter.insert(col.index());
+            auto createIter = coarseLevelMatrix_->createbegin();
+            for (const auto& row : fineLevelMatrix) {
+                for (auto col = row.begin(), cend = row.end(); col != cend; ++col) {
+                    createIter.insert(col.index());
+                }
+                ++createIter;
             }
-            ++createIter;
         }
 #if DUNE_VERSION_NEWER(DUNE_ISTL, 2, 7)
         if constexpr (std::is_same_v<Communication, Dune::Amg::SequentialInformation>) {
@@ -163,11 +176,14 @@ public:
                 (*entryCoarse) = matrix_el;
             }
         }
-        if(prm_.get<bool>("add_wells")){
-            assert(transpose==false);// not implemented
+        if (prm_.get<bool>("add_wells")) {
+            assert(transpose == false); // not implemented
             fineOperator.addWellPressureEquations(*coarseLevelMatrix_, weights_);
         }
+#ifndef NDEBUG
+        std::advance(rowCoarse, fineOperator.getNumberOfExtraEquations());
         assert(rowCoarse == coarseLevelMatrix_->end());
+#endif
     }
 
     virtual void moveToCoarseLevel(const typename ParentType::FineRangeType& fine) override
