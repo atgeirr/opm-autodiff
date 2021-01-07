@@ -310,32 +310,31 @@ private:
         }
 
         if constexpr (std::is_same_v<O, WellModelGhostLastMatrixAdapter<M, V, V, true>>) {
-            doAddCreator("cpr",
+            doAddCreator("cprw",
                          [](const O& op, const P& prm, const std::function<Vector()> weightsCalculator, const C& comm) {
                              assert(weightsCalculator);
                              return std::make_shared<OwningTwoLevelPreconditionerWell<O, V, false, Comm>>(
                                  op, prm, weightsCalculator, comm);
                          });
-            doAddCreator("cprt",
+            doAddCreator("cprwt",
                          [](const O& op, const P& prm, const std::function<Vector()> weightsCalculator, const C& comm) {
                              assert(weightsCalculator);
                              return std::make_shared<OwningTwoLevelPreconditionerWell<O, V, true, Comm>>(
                                  op, prm, weightsCalculator, comm);
                          });
-        } else {
-            doAddCreator("cpr",
-                         [](const O& op, const P& prm, const std::function<Vector()> weightsCalculator, const C& comm) {
-                             assert(weightsCalculator);
-                             return std::make_shared<OwningTwoLevelPreconditioner<O, V, false, Comm>>(
-                                 op, prm, weightsCalculator, comm);
-                         });
-            doAddCreator("cprt",
-                         [](const O& op, const P& prm, const std::function<Vector()> weightsCalculator, const C& comm) {
-                             assert(weightsCalculator);
-                             return std::make_shared<OwningTwoLevelPreconditioner<O, V, true, Comm>>(
-                                 op, prm, weightsCalculator, comm);
-                         });
         }
+        doAddCreator("cpr",
+                     [](const O& op, const P& prm, const std::function<Vector()> weightsCalculator, const C& comm) {
+                         assert(weightsCalculator);
+                         return std::make_shared<OwningTwoLevelPreconditioner<O, V, false, Comm>>(
+                             op, prm, weightsCalculator, comm);
+                     });
+        doAddCreator("cprt",
+                     [](const O& op, const P& prm, const std::function<Vector()> weightsCalculator, const C& comm) {
+                         assert(weightsCalculator);
+                         return std::make_shared<OwningTwoLevelPreconditioner<O, V, true, Comm>>(
+                             op, prm, weightsCalculator, comm);
+                     });
     }
 
     // Add a useful default set of preconditioners to the factory.
@@ -459,20 +458,20 @@ private:
         }
 
         if constexpr (std::is_same_v<O, WellModelMatrixAdapter<M, V, V, false>>) {
-            doAddCreator("cpr", [](const O& op, const P& prm, const std::function<Vector()>& weightsCalculator) {
+            doAddCreator("cprw", [](const O& op, const P& prm, const std::function<Vector()>& weightsCalculator) {
                 return std::make_shared<OwningTwoLevelPreconditionerWell<O, V, false>>(op, prm, weightsCalculator);
             });
-            doAddCreator("cprt", [](const O& op, const P& prm, const std::function<Vector()>& weightsCalculator) {
+            doAddCreator("cprwt", [](const O& op, const P& prm, const std::function<Vector()>& weightsCalculator) {
                 return std::make_shared<OwningTwoLevelPreconditionerWell<O, V, true>>(op, prm, weightsCalculator);
             });
-        } else {
-            doAddCreator("cpr", [](const O& op, const P& prm, const std::function<Vector()>& weightsCalculator) {
-                return std::make_shared<OwningTwoLevelPreconditioner<O, V, false>>(op, prm, weightsCalculator);
-            });
-            doAddCreator("cprt", [](const O& op, const P& prm, const std::function<Vector()>& weightsCalculator) {
-                return std::make_shared<OwningTwoLevelPreconditioner<O, V, true>>(op, prm, weightsCalculator);
-            });
-        }
+            }
+
+        doAddCreator("cpr", [](const O& op, const P& prm, const std::function<Vector()>& weightsCalculator) {
+            return std::make_shared<OwningTwoLevelPreconditioner<O, V, false>>(op, prm, weightsCalculator);
+        });
+        doAddCreator("cprt", [](const O& op, const P& prm, const std::function<Vector()>& weightsCalculator) {
+            return std::make_shared<OwningTwoLevelPreconditioner<O, V, true>>(op, prm, weightsCalculator);
+        });
     }
 
 

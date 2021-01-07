@@ -354,14 +354,18 @@ namespace Opm
                 if (isParallel()) {
 #if HAVE_MPI
                     if (useWellConn_) {
-                        // using ParOperatorType = Dune::OverlappingSchwarzOperator<Matrix, Vector, Vector, Comm>;
-                        // linearOperatorForFlexibleSolver_ = std::make_unique<ParOperatorType>(getMatrix(), *comm_);
-                        // flexibleSolver_ = std::make_unique<FlexibleSolverType>(*linearOperatorForFlexibleSolver_, *comm_, prm_, weightsCalculator);
+                        using ParOperatorType = Dune::OverlappingSchwarzOperator<Matrix, Vector, Vector, Comm>;
+                        auto op = std::make_unique<ParOperatorType>(getMatrix(), *comm_);
+                        using FlexibleSolverType = Dune::FlexibleSolver<ParOperatorType>;
+                        auto sol = std::make_unique<FlexibleSolverType>(*op, *comm_, prm_, weightsCalculator);
+                        preconditionerForFlexibleSolver_ = &(sol->preconditioner());
+                        linearOperatorForFlexibleSolver_ = std::move(op);
+                        flexibleSolver_ = std::move(sol);
                     } else {
                         using ParOperatorType = WellModelGhostLastMatrixAdapter<Matrix, Vector, Vector, true>;
-                        using FlexibleSolverType = Dune::FlexibleSolver<ParOperatorType>;
                         wellOperator_ = std::make_unique<WellModelOperator>(simulator_.problem().wellModel());
                         auto op = std::make_unique<ParOperatorType>(getMatrix(), *wellOperator_, interiorCellNum_);
+                        using FlexibleSolverType = Dune::FlexibleSolver<ParOperatorType>;
                         auto sol = std::make_unique<FlexibleSolverType>(*op, *comm_, prm_, weightsCalculator);
                         preconditionerForFlexibleSolver_ = &(sol->preconditioner());
                         linearOperatorForFlexibleSolver_ = std::move(op);
@@ -370,14 +374,18 @@ namespace Opm
 #endif
                 } else {
                     if (useWellConn_) {
-                        // using SeqOperatorType = Dune::MatrixAdapter<Matrix, Vector, Vector>;
-                        // linearOperatorForFlexibleSolver_ = std::make_unique<SeqOperatorType>(getMatrix());
-                        // flexibleSolver_ = std::make_unique<FlexibleSolverType>(*linearOperatorForFlexibleSolver_, prm_, weightsCalculator);
+                        using SeqOperatorType = Dune::MatrixAdapter<Matrix, Vector, Vector>;
+                        auto op = std::make_unique<SeqOperatorType>(getMatrix());
+                        using FlexibleSolverType = Dune::FlexibleSolver<SeqOperatorType>;
+                        auto sol = std::make_unique<FlexibleSolverType>(*op, prm_, weightsCalculator);
+                        preconditionerForFlexibleSolver_ = &(sol->preconditioner());
+                        linearOperatorForFlexibleSolver_ = std::move(op);
+                        flexibleSolver_ = std::move(sol);
                     } else {
                         using SeqOperatorType = WellModelMatrixAdapter<Matrix, Vector, Vector, false>;
-                        using FlexibleSolverType = Dune::FlexibleSolver<SeqOperatorType>;
                         wellOperator_ = std::make_unique<WellModelOperator>(simulator_.problem().wellModel());
                         auto op = std::make_unique<SeqOperatorType>(getMatrix(), *wellOperator_);
+                        using FlexibleSolverType = Dune::FlexibleSolver<SeqOperatorType>;
                         auto sol = std::make_unique<FlexibleSolverType>(*op, prm_, weightsCalculator);
                         preconditionerForFlexibleSolver_ = &(sol->preconditioner());
                         linearOperatorForFlexibleSolver_ = std::move(op);
@@ -428,8 +436,9 @@ namespace Opm
             std::function<Vector()> weightsCalculator;
 
             auto preconditionerType = prm_.get("preconditioner.type", "cpr");
-            if (preconditionerType == "cpr" || preconditionerType == "cprt") {
-                const bool transpose = preconditionerType == "cprt";
+            if (preconditionerType == "cpr" || preconditionerType == "cprt"
+                || preconditionerType == "cprw" || preconditionerType == "cprwt") {
+                const bool transpose = preconditionerType == "cprt" || preconditionerType == "cprwt";
                 const auto weightsType = prm_.get("preconditioner.weight_type", "quasiimpes");
                 const auto pressureIndex = this->prm_.get("preconditioner.pressure_var_index", 1);
                 if (weightsType == "quasiimpes") {
