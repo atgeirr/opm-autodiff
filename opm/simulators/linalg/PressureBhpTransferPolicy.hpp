@@ -29,92 +29,95 @@ namespace Opm
     void extendCommunicatorWithWells(const Communication& comm,
                                      std::shared_ptr<Communication>& commRW,
                                      const int nw)
-    //                                    std::vector<int>& welldofs)
     {
         // used for extending the coarse communicator pattern
         using IndexSet = typename Communication::ParallelIndexSet;
         using LocalIndex = typename IndexSet::LocalIndex;
-        const IndexSet& indset = comm.indexSet(); 
-        IndexSet& indset_rw = commRW->indexSet(); 
-        int max_nw = comm.communicator().max(nw)+1;
-        int num_proc = comm.communicator().size()+1;
-        int loc_max = 0;
-        int count = 0;
+        const IndexSet& indset = comm.indexSet();
+        IndexSet& indset_rw = commRW->indexSet();
+        const int max_nw = comm.communicator().max(nw);
+        const int num_proc = comm.communicator().size();
+        int glo_max = 0;
+        size_t loc_max = 0;
         indset_rw.beginResize();
-        for (auto ind=indset.begin(), indend=indset.end(); ind!= indend; ++ind) {
-            // int loc_ind = ind->local();
-            indset_rw.add(ind->global(),
-                          LocalIndex(ind->local(),ind->local().attribute(),true));
-            loc_max = std::max(loc_max,ind->global());
-            assert(count == ind->local());
-            count +=1;
+        for (auto ind = indset.begin(), indend = indset.end(); ind != indend; ++ind) {
+            indset_rw.add(ind->global(), LocalIndex(ind->local(), ind->local().attribute(), true));
+            const int glo = ind->global();
+            const size_t loc = ind->local().local();
+            glo_max = std::max(glo_max, glo);
+            loc_max = std::max(loc_max, loc);
         }
-        int global_max = comm.communicator().max(loc_max)+1;
-        //used append the welldofs at the end
-        for (int i=0; i < nw; ++i){
+        const int global_max = comm.communicator().max(glo_max);
+        // used append the welldofs at the end
+        assert(loc_max + 1 == indset.size());
+        size_t local_ind = loc_max + 1;
+        for (int i = 0; i < nw; ++i) {
             // need to set unique global number
-            int local_ind = count;
-            int v = global_max + max_nw*num_proc + i;
+            const size_t v = global_max + max_nw * num_proc + i + 1;
             // set to true to not have problems with higher levels if growing of domains is used
             indset_rw.add(v, LocalIndex(local_ind, Dune::OwnerOverlapCopyAttributeSet::owner, true));
-            //welldofs.push_back(local_ind);
-            local_ind +=1;       
+            ++local_ind;
         }
         indset_rw.endResize();
+        assert(indset_rw.size() == indset.size() + nw);
         // assume same communication pattern
         commRW->remoteIndices().setNeighbours(comm.remoteIndices().getNeighbours());
         commRW->remoteIndices().template rebuild<true>();
     }
-    
+
+
+
     template <class FineOperator, class CoarseOperator, class Communication, bool transpose = false>
-class PressureBhpTransferPolicy : public Dune::Amg::LevelTransferPolicyCpr<FineOperator, CoarseOperator>
-{
-public:
-    typedef Dune::Amg::LevelTransferPolicyCpr<FineOperator, CoarseOperator> ParentType;
-    typedef Communication ParallelInformation;
-    typedef typename FineOperator::domain_type FineVectorType;
-
-public:
-    PressureBhpTransferPolicy(const Communication& comm, const FineVectorType& weights, const boost::property_tree::ptree& prm)
-        : communication_(&const_cast<Communication&>(comm))
-        , weights_(weights)
-        , prm_(prm)
-        , pressure_var_index_(prm_.get<int>("pressure_var_index"))
+    class PressureBhpTransferPolicy : public Dune::Amg::LevelTransferPolicyCpr<FineOperator, CoarseOperator>
     {
-    }
+    public:
+        typedef Dune::Amg::LevelTransferPolicyCpr<FineOperator, CoarseOperator> ParentType;
+        typedef Communication ParallelInformation;
+        typedef typename FineOperator::domain_type FineVectorType;
 
-    virtual void createCoarseLevelSystem(const FineOperator& fineOperator) override
-    {
-        using CoarseMatrix = typename CoarseOperator::matrix_type;
-        const auto& fineLevelMatrix = fineOperator.getmat();
-        const auto& nw = fineOperator.getNumberOfExtraEquations();
-        if (prm_.get<bool>("add_wells")) {
-            const size_t average_elements_per_row
-                = static_cast<size_t>(std::ceil(fineLevelMatrix.nonzeroes() / fineLevelMatrix.N()));
-            const double overflow_fraction = 1.2;
-            coarseLevelMatrix_.reset(new CoarseMatrix(fineLevelMatrix.N() + nw,
-                                                      fineLevelMatrix.M() + nw,
-                                                      average_elements_per_row,
-                                                      overflow_fraction,
-                                                      CoarseMatrix::implicit));
-            int rownum = 0;
-            for (const auto& row : fineLevelMatrix) {
-                for (auto col = row.begin(), cend = row.end(); col != cend; ++col) {
-                    coarseLevelMatrix_->entry(rownum, col.index()) = 0.0;
-                }
-                ++rownum;
-            }
-        } else {
-            coarseLevelMatrix_.reset(
-                new CoarseMatrix(fineLevelMatrix.N(), fineLevelMatrix.M(), CoarseMatrix::row_wise));
-            auto createIter = coarseLevelMatrix_->createbegin();
-            for (const auto& row : fineLevelMatrix) {
-                for (auto col = row.begin(), cend = row.end(); col != cend; ++col) {
-                    createIter.insert(col.index());
-                }
-                ++createIter;
-            }
+    public:
+        PressureBhpTransferPolicy(const Communication& comm,
+                                  const FineVectorType& weights,
+                                  const boost::property_tree::ptree& prm)
+            : communication_(&const_cast<Communication&>(comm))
+            , weights_(weights)
+            , prm_(prm)
+            , pressure_var_index_(prm_.get<int>("pressure_var_index"))
+        {
         }
+
+        virtual void createCoarseLevelSystem(const FineOperator& fineOperator) override
+        {
+            using CoarseMatrix = typename CoarseOperator::matrix_type;
+            const auto& fineLevelMatrix = fineOperator.getmat();
+            const auto& nw = fineOperator.getNumberOfExtraEquations();
+            if (prm_.get<bool>("add_wells")) {
+                const size_t average_elements_per_row
+                    = static_cast<size_t>(std::ceil(fineLevelMatrix.nonzeroes() / fineLevelMatrix.N()));
+                const double overflow_fraction = 1.2;
+                coarseLevelMatrix_.reset(new CoarseMatrix(fineLevelMatrix.N() + nw,
+                                                          fineLevelMatrix.M() + nw,
+                                                          average_elements_per_row,
+                                                          overflow_fraction,
+                                                          CoarseMatrix::implicit));
+                int rownum = 0;
+                for (const auto& row : fineLevelMatrix) {
+                    for (auto col = row.begin(), cend = row.end(); col != cend; ++col) {
+                        coarseLevelMatrix_->entry(rownum, col.index()) = 0.0;
+                    }
+                    ++rownum;
+                }
+            } else {
+                coarseLevelMatrix_.reset(
+                    new CoarseMatrix(fineLevelMatrix.N(), fineLevelMatrix.M(), CoarseMatrix::row_wise));
+                auto createIter = coarseLevelMatrix_->createbegin();
+                for (const auto& row : fineLevelMatrix) {
+                    for (auto col = row.begin(), cend = row.end(); col != cend; ++col) {
+                        createIter.insert(col.index());
+                    }
+                    ++createIter;
+                }
+            }
 #if DUNE_VERSION_NEWER(DUNE_ISTL, 2, 7)
         if constexpr (std::is_same_v<Communication, Dune::Amg::SequentialInformation>) {
             coarseLevelCommunication_ = std::make_shared<Communication>();
