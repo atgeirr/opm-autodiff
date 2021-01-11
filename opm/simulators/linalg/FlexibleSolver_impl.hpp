@@ -162,12 +162,12 @@ namespace Dune
                                                                         restart, // desired residual reduction factor
                                                                         maxiter, // maximum number of iterations
                                                                         verbosity));
-// #if HAVE_SUITESPARSE_UMFPACK
-//         } else if (solver_type == "umfpack") {
-//             bool dummy = false;
-//             using MatrixType = std::remove_reference_t<decltype(linearoperator_for_solver_->getmat())>;
-//             linsolver_.reset(new Dune::UMFPack<MatrixType>(linearoperator_for_solver_->getmat(), verbosity, dummy));
-// #endif
+#if HAVE_SUITESPARSE_UMFPACK
+        } else if (solver_type == "umfpack") {
+            bool dummy = false;
+            using MatrixType = std::remove_const_t<std::remove_reference_t<decltype(linearoperator_for_solver_->getmat())>>;
+            linsolver_.reset(new Dune::UMFPack<MatrixType>(linearoperator_for_solver_->getmat(), verbosity, dummy));
+#endif
         } else {
             OPM_THROW(std::invalid_argument, "Properties: Solver " << solver_type << " not known.");
         }
