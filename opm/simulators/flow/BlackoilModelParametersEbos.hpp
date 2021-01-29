@@ -150,6 +150,10 @@ template<class TypeTag, class MyTypeTag>
 struct AlternativeWellRateInit {
     using type = UndefinedProperty;
 };
+template<class TypeTag, class MyTypeTag>
+struct EnableAspin {
+    using type = UndefinedProperty;
+};
 
 template<class TypeTag>
 struct DbhpMaxRel<TypeTag, TTag::FlowModelParameters> {
@@ -283,6 +287,11 @@ struct RelaxedPressureTolInnerIterMsw<TypeTag, TTag::FlowModelParameters> {
     static constexpr type value = 0.5e5;
 };
 
+template<class TypeTag>
+struct EnableAspin<TypeTag, TTag::FlowModelParameters> {
+    static constexpr bool value = false;
+};
+
 // if openMP is available, determine the number threads per process automatically.
 #if _OPENMP
 template<class TypeTag>
@@ -384,6 +393,9 @@ namespace Opm
         // Whether to add influences of wells between cells to the matrix and preconditioner matrix
         bool matrix_add_well_contributions_;
 
+        // Use ASPIN approach instead of Newton
+        bool enable_aspin_;
+
         /// Construct from user parameters or defaults.
         BlackoilModelParametersEbos()
         {
@@ -414,7 +426,7 @@ namespace Opm
             update_equations_scaling_ = EWOMS_GET_PARAM(TypeTag, bool, UpdateEquationsScaling);
             use_update_stabilization_ = EWOMS_GET_PARAM(TypeTag, bool, UseUpdateStabilization);
             matrix_add_well_contributions_ = EWOMS_GET_PARAM(TypeTag, bool, MatrixAddWellContributions);
-
+            enable_aspin_ = EWOMS_GET_PARAM(TypeTag, bool, EnableAspin);
             deck_file_name_ = EWOMS_GET_PARAM(TypeTag, std::string, EclDeckFileName);
         }
 
@@ -450,6 +462,7 @@ namespace Opm
             EWOMS_REGISTER_PARAM(TypeTag, bool, UseUpdateStabilization, "Try to detect and correct oscillations or stagnation during the Newton method");
             EWOMS_REGISTER_PARAM(TypeTag, bool, MatrixAddWellContributions, "Explicitly specify the influences of wells between cells in the Jacobian and preconditioner matrices");
             EWOMS_REGISTER_PARAM(TypeTag, bool, EnableWellOperabilityCheck, "Enable the well operability checking");
+            EWOMS_REGISTER_PARAM(TypeTag, bool, EnableAspin, "Enable the well operability checking");
         }
     };
 } // namespace Opm
